@@ -27,8 +27,8 @@ async function loadAll() {
 
   S.transactions = (txs || []).map(t => ({
     ...t,
-    type : t.type.toLowerCase(),
-    desc : t.description,
+    type: t.type.toLowerCase(),
+    desc: t.description,
     catId: t.categoryId || null
   }));
 
@@ -53,12 +53,12 @@ function showPage(id, el) {
   el.classList.add('active');
 
   const renders = {
-    dashboard   : renderDashboard,
+    dashboard: renderDashboard,
     transactions: renderTransactions,
-    accounts    : renderAccounts,
-    categories  : renderCategories,
-    budget      : renderBudget,
-    reports     : renderReports
+    accounts: renderAccounts,
+    categories: renderCategories,
+    budget: renderBudget,
+    reports: renderReports
   };
 
   if (renders[id]) renders[id]();
@@ -68,19 +68,19 @@ function showPage(id, el) {
 // LINHA DE TRANSAÇÃO (compartilhada)
 // =============================================
 function txRow(t, showDelete = true) {
-  const type     = (t.type || '').toLowerCase();
-  const acc      = S.accounts.find(a => a.id === t.accountId);
-  const cat      = t.catId ? getCat(t.catId) : null;
-  const defBg    = { income:'#E1F5EE', expense:'#FCEBEB', transfer:'#E6F1FB' };
-  const defClr   = { income:'#0F6E56', expense:'#A32D2D', transfer:'#185FA5' };
-  const defIcon  = { income:'ti-arrow-down-circle', expense:'ti-arrow-up-circle', transfer:'ti-arrows-exchange' };
-  const bg       = cat ? (COLOR_BG[cat.color] || defBg[type]) : defBg[type];
-  const clr      = cat ? cat.color : defClr[type];
-  const iconI    = cat ? cat.icon  : defIcon[type];
-  const sign     = { income:'+', expense:'-', transfer:'' };
-  const amtCls   = { income:'pos', expense:'neg', transfer:'' };
-  const bLabel   = { income:'Receita', expense:'Despesa', transfer:'Transferência' };
-  const badgeCls = { income:'badge-income', expense:'badge-expense', transfer:'badge-transfer' };
+  const type = (t.type || '').toLowerCase();
+  const acc = S.accounts.find(a => a.id === t.accountId);
+  const cat = t.catId ? getCat(t.catId) : null;
+  const defBg = { income: '#E1F5EE', expense: '#FCEBEB', transfer: '#E6F1FB' };
+  const defClr = { income: '#0F6E56', expense: '#A32D2D', transfer: '#185FA5' };
+  const defIcon = { income: 'ti-arrow-down-circle', expense: 'ti-arrow-up-circle', transfer: 'ti-arrows-exchange' };
+  const bg = cat ? (COLOR_BG[cat.color] || defBg[type]) : defBg[type];
+  const clr = cat ? cat.color : defClr[type];
+  const iconI = cat ? cat.icon : defIcon[type];
+  const sign = { income: '+', expense: '-', transfer: '' };
+  const amtCls = { income: 'pos', expense: 'neg', transfer: '' };
+  const bLabel = { income: 'Receita', expense: 'Despesa', transfer: 'Transferência' };
+  const badgeCls = { income: 'badge-income', expense: 'badge-expense', transfer: 'badge-transfer' };
 
   let accountInfo = acc ? acc.name : '—';
   if (type === 'transfer') {
@@ -107,10 +107,16 @@ function txRow(t, showDelete = true) {
       <div class="tx-account">${accountInfo} · ${t.date.split('-').reverse().join('/')}</div>
     </div>
     ${showDelete
-      ? `<button class="icon-btn danger" onclick="deleteTx(${t.id})" title="Excluir">
-           <i class="ti ti-trash"></i>
-         </button>`
-      : ''}
+      ? `<div style="display:flex;gap:4px">
+          <button class="icon-btn" onclick="openTxModal(${t.id})" title="Editar">
+            <i class="ti ti-edit"></i>
+          </button>
+          <button class="icon-btn danger" onclick="deleteTx(${t.id})" title="Excluir">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>`
+      : ''
+    }
   </div>`;
 }
 
@@ -118,7 +124,7 @@ function txRow(t, showDelete = true) {
 // CÁLCULO DE MÉTRICAS
 // =============================================
 function calcMetrics(txs) {
-  const income  = txs.filter(t => t.type === 'income').reduce((s,t)  => s + t.amount, 0);
-  const expense = txs.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+  const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   return { income, expense, balance: income - expense };
 }
