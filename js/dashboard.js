@@ -2,35 +2,54 @@
 // DASHBOARD
 // =============================================
 function renderDashboard() {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  const monthKey = year + '-' + String(month).padStart(2, '0');
-  const txs = monthlyTx(monthKey);
-  const m = calcMetrics(txs);
-  const totalBal = S.accounts
-    .filter(a => a.type !== 'Cartão de crédito')
-    .reduce((s, a) => s + a.balance, 0);
+  // const now = new Date();
+  // const month = now.getMonth() + 1;
+  // const year = now.getFullYear();
+  // const monthKey = year + '-' + String(month).padStart(2, '0');
+  // const txs = monthlyTx(monthKey);
+  // const m = calcMetrics(txs);
+  // const totalBal = S.accounts
+  //   .filter(a => a.type !== 'Cartão de crédito')
+  //   .reduce((s, a) => s + a.balance, 0);
 
-  document.getElementById('metrics-dashboard').innerHTML = `
-    <div class="metric-card">
-      <div class="metric-label">Saldo total</div>
-      <div class="metric-value">${fmt(totalBal)}</div>
-      <div class="metric-sub">${S.accounts.length} conta(s)</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Receitas (mês)</div>
-      <div class="metric-value income">${fmt(m.income)}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Despesas (mês)</div>
-      <div class="metric-value expense">${fmt(m.expense)}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">Resultado (mês)</div>
-      <div class="metric-value ${m.balance >= 0 ? 'income' : 'expense'}">${fmt(m.balance)}</div>
-    </div>
-  `;
+
+  const dashboard = document.getElementById('metrics-dashboard');
+
+  let html = '';
+
+  for (const account of S.accounts) {
+    const isCreditCard = account.type === 'Cartão de crédito';
+
+    html += `
+        <div class="metric-card">
+          <div class="metric-label">${account.name}</div>
+          ${isCreditCard
+        ? `<div class="metric-sub">Fatura atual</div>
+           <div class="metric-value expense">${fmt(account.invoice || 0)}</div>`
+        : `<div class="metric-sub">Saldo</div>
+           <div class="metric-value">${fmt(account.balance)}</div>`
+      }
+        </div>
+      `;
+  }
+
+  dashboard.innerHTML = html;
+
+
+
+  //   <div class="metric-card">
+  //     <div class="metric-label">Receitas (mês)</div>
+  //     <div class="metric-value income">${fmt(m.income)}</div>
+  //   </div>
+  //   <div class="metric-card">
+  //     <div class="metric-label">Despesas (mês)</div>
+  //     <div class="metric-value expense">${fmt(m.expense)}</div>
+  //   </div>
+  //   <div class="metric-card">
+  //     <div class="metric-label">Resultado (mês)</div>
+  //     <div class="metric-value ${m.balance >= 0 ? 'income' : 'expense'}">${fmt(m.balance)}</div>
+  //   </div>
+
 
   const recent = [...S.transactions]
     .sort((a, b) => b.date.localeCompare(a.date))

@@ -25,6 +25,14 @@ async function loadAll() {
     api('GET', '/accounts')
   ]);
 
+  const typeOrder = {
+    'Conta corrente': 1,
+    'Poupança': 2,
+    'Carteira': 3,
+    'Investimento': 4,
+    'Cartão de crédito': 5
+  };
+
   S.transactions = (txs || []).map(t => ({
     ...t,
     type: t.type.toLowerCase(),
@@ -40,7 +48,10 @@ async function loadAll() {
   S.accounts = (accs || []).map(a => ({
     ...a,
     type: ACC_TYPE_MAP[a.type] || a.type
-  }));
+  })).sort((a, b) => {
+    const diff = (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+    return diff !== 0 ? diff : a.name.localeCompare(b.name, 'pt-BR');
+  });
 }
 
 // =============================================
