@@ -10,6 +10,13 @@ async function api(method, path, body) {
     },
     body: body ? JSON.stringify(body) : undefined
   });
+
+  // Token expirado ou inválido — redireciona para login
+  if (res.status === 401 || res.status === 403) {
+    sessionExpired();
+    throw new Error('Sessão expirada.');
+  }
+
   const data = await res.json();
   if (!data.success) throw new Error(data.message);
   return data.data;
