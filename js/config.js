@@ -81,8 +81,11 @@ let token = localStorage.getItem('token') || '';
 let userName = localStorage.getItem('userName') || '';
 
 // Filtros de gráfico e transferência
+let selectedAccountId = null; // null = nenhuma conta selecionada ainda
+let editingTxId = null;
 let chartFilter = 'month';
 let transferType = 'own';
+
 
 // =============================================
 // UTILITÁRIOS GLOBAIS

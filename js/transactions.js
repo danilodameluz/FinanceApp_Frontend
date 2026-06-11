@@ -1,104 +1,252 @@
 // =============================================
-// LANÇAMENTOS — Listagem e Filtros
+// ESTADO DOS LANÇAMENTOS
+// =============================================
+
+
+const TX_PAGE_SIZE = 20;
+let txCurrentPage = 1;
+
+// =============================================
+// RENDERIZAÇÃO PRINCIPAL
 // =============================================
 function renderTransactions() {
-  let txs;
+  const container = document.getElementById('transactions-container');
+  if (!container) return;
 
-  if (S.filter === 'all') {
-    txs = [...S.transactions];
-
-  } else if (S.filter === 'credit_card') {
-    const creditCardIds = S.accounts
-      .filter(a => a.type === 'Cartão de crédito')
-      .map(a => a.id);
-    txs = S.transactions.filter(t => creditCardIds.includes(t.accountId));
-
-  } else if (S.filter === 'custom') {
-    const startVal = document.getElementById('tx-date-start').value;
-    const endVal = document.getElementById('tx-date-end').value;
-
-    if (!startVal || !endVal) {
-      txs = [...S.transactions];
-    } else {
-      const start = new Date(startVal + 'T00:00:00');
-      const end = new Date(endVal + 'T23:59:59');
-      txs = S.transactions.filter(t => {
-        const d = new Date(t.date + 'T12:00:00');
-        return d >= start && d <= end;
-      });
-
-      // Resumo do período
-      const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      const counter = document.getElementById('tx-period-count');
-      if (counter) {
-        counter.innerHTML = `
-          ${txs.length} lançamento(s) ·
-          <span style="color:#0F6E56">+${fmt(income)}</span> ·
-          <span style="color:#A32D2D">-${fmt(expense)}</span> ·
-          <strong style="color:${income - expense >= 0 ? '#0F6E56' : '#A32D2D'}">
-            resultado: ${fmt(income - expense)}
-          </strong>`;
-      }
-    }
-
-  } else {
-    txs = S.transactions.filter(t => t.type === S.filter);
+  // Se nenhuma conta selecionada, seleciona a primeira
+  if (selectedAccountId === null && S.accounts.length > 0) {
+    selectedAccountId = S.accounts[0].id;
   }
 
+  buildAccountTabs();
+  renderAccountTransactions();
+}
+
+// =============================================
+// ABAS DE CONTAS
+// =============================================
+function buildAccountTabs() {
+  const tabBar = document.getElementById('account-tabs');
+  if (!tabBar) return;
+
+  tabBar.innerHTML = S.accounts.map(a => {
+    const icon = ACC_ICONS[a.type] || 'ti-building-bank';
+    const isCreditCard = a.type === 'Cartão de crédito';
+    const subtitle = isCreditCard
+      ? `Fatura: ${fmt(a.invoice || 0)}`
+      : `Saldo: ${fmt(a.balance)}`;
+    const isActive = a.id === selectedAccountId;
+
+    return `<div class="acc-tab ${isActive ? 'acc-tab-active' : ''}"
+                 onclick="selectAccount(${a.id})">
+      <i class="ti ${icon}" style="font-size:16px"></i>
+      <div>
+        <div style="font-size:13px;font-weight:500">${a.name}</div>
+        <div style="font-size:13px;color:${isCreditCard ? '#A32D2D' : '#0F6E56'}">${subtitle}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectAccount(accId) {
+  selectedAccountId = accId;
+  txCurrentPage = 1;
+
+  // Reseta datas do filtro
+  const startEl = document.getElementById('tx-date-start');
+  const endEl = document.getElementById('tx-date-end');
+  if (startEl) startEl.value = '';
+  if (endEl) endEl.value = '';
+
+  buildAccountTabs();
+  renderAccountTransactions();
+}
+
+// =============================================
+// LANÇAMENTOS DA CONTA SELECIONADA
+// =============================================
+function renderAccountTransactions() {
+  const acc = S.accounts.find(a => a.id === selectedAccountId);
+  if (!acc) return;
+
+  const startVal = document.getElementById('tx-date-start')?.value;
+  const endVal = document.getElementById('tx-date-end')?.value;
+
+  // Filtra por conta (origem ou destino)
+  let txs = S.transactions.filter(t =>
+    t.accountId === selectedAccountId ||
+    t.destinationAccountId === selectedAccountId
+  );
+
+  // Filtra por período se preenchido
+  if (startVal && endVal) {
+    const start = new Date(startVal + 'T00:00:00');
+    const end = new Date(endVal + 'T23:59:59');
+    txs = txs.filter(t => {
+      const d = new Date(t.date + 'T12:00:00');
+      return d >= start && d <= end;
+    });
+  }
+
+  // Ordena por data decrescente
   txs.sort((a, b) => b.date.localeCompare(a.date));
 
-  document.getElementById('all-tx-list').innerHTML = txs.length
-    ? txs.map(t => txRow(t, true)).join('')
-    : '<div class="empty-state"><i class="ti ti-receipt-off"></i>Nenhum lançamento encontrado</div>';
+  // Paginação
+  const total = txs.length;
+  const totalPages = Math.max(1, Math.ceil(total / TX_PAGE_SIZE));
+  if (txCurrentPage > totalPages) txCurrentPage = totalPages;
+
+  const start = (txCurrentPage - 1) * TX_PAGE_SIZE;
+  const paged = txs.slice(start, start + TX_PAGE_SIZE);
+
+  // Métricas do período filtrado
+  const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const balance = income - expense;
+
+  const content = document.getElementById('account-tx-content');
+  if (!content) return;
+
+  content.innerHTML = `
+    
+
+    <!-- Filtro de período -->
+    <div class="card" style="margin-bottom:1rem;padding:0.875rem 1.25rem">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:13px;color:#666;font-weight:500">
+          <i class="ti ti-calendar" style="margin-right:4px"></i>Período
+        </span>
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
+          <label>De</label>
+          <input type="date" id="tx-date-start"
+                 value="${startVal || ''}"
+                 style="width:145px"
+                 onchange="applyTxDateFilter()">
+          <label>até</label>
+          <input type="date" id="tx-date-end"
+                 value="${endVal || ''}"
+                 style="width:145px"
+                 onchange="applyTxDateFilter()">
+          <button class="btn btn-primary btn-sm" onclick="applyTxDateFilter()">
+            <i class="ti ti-search"></i>Filtrar
+          </button>
+          ${startVal && endVal
+      ? `<button class="btn btn-sm" onclick="clearTxDateFilter()">
+                 <i class="ti ti-x"></i>Limpar
+               </button>`
+      : ''
+    }
+        </div>
+      </div>
+    </div>
+
+    <!-- Paginação -->
+    ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
+    
+    <!-- Lista de lançamentos -->
+    <div class="card">
+      <div class="tx-list" id="tx-list-content">
+        ${paged.length
+      ? paged.map(t => txRow(t, true)).join('')
+      : '<div class="empty-state"><i class="ti ti-receipt-off"></i>Nenhum lançamento encontrado</div>'
+    }
+      </div>
+    </div>
+
+    <!-- Paginação -->
+    ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
+  `;
 }
 
-function setFilter(f, el) {
-  S.filter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+function applyTxDateFilter() {
+  txCurrentPage = 1;
+  renderAccountTransactions();
+}
 
-  const dateRange = document.getElementById('tx-date-range');
-  if (f === 'custom') {
-    dateRange.classList.add('show');
-    const now = new Date();
-    const start = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-    const end = now.toISOString().split('T')[0];
-    if (!document.getElementById('tx-date-start').value)
-      document.getElementById('tx-date-start').value = start;
-    if (!document.getElementById('tx-date-end').value)
-      document.getElementById('tx-date-end').value = end;
-  } else {
-    dateRange.classList.remove('show');
-    const counter = document.getElementById('tx-period-count');
-    if (counter) counter.innerHTML = '';
+function clearTxDateFilter() {
+  txCurrentPage = 1;
+  renderAccountTransactions();
+}
+
+// =============================================
+// PAGINAÇÃO
+// =============================================
+function buildPagination(current, total) {
+  const pages = [];
+
+  pages.push(1);
+  if (current > 3) pages.push('...');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
   }
+  if (current < total - 2) pages.push('...');
+  if (total > 1) pages.push(total);
 
-  renderTransactions();
+  const buttons = pages.map(p => {
+    if (p === '...') {
+      return `<span style="padding:0 4px;color:#aaa;font-size:13px">…</span>`;
+    }
+    return `<button class="filter-btn ${p === current ? 'active' : ''}"
+                    onclick="goToPage(${p})"
+                    style="min-width:32px;padding:5px 8px">
+              ${p}
+            </button>`;
+  }).join('');
+
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;
+                gap:6px;margin-bottom:1rem;margin-top:1rem;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="goToPage(${current - 1})"
+              ${current <= 1 ? 'disabled' : ''}>
+        <i class="ti ti-chevron-left"></i>
+      </button>
+      ${buttons}
+      <button class="btn btn-sm" onclick="goToPage(${current + 1})"
+              ${current >= total ? 'disabled' : ''}>
+        <i class="ti ti-chevron-right"></i>
+      </button>
+    </div>`;
 }
 
+function goToPage(page) {
+  const acc = S.accounts.find(a => a.id === selectedAccountId);
+  if (!acc) return;
+
+  const txs = S.transactions.filter(t =>
+    t.accountId === selectedAccountId ||
+    t.destinationAccountId === selectedAccountId
+  );
+  const totalPages = Math.max(1, Math.ceil(txs.length / TX_PAGE_SIZE));
+
+  if (page < 1 || page > totalPages) return;
+  txCurrentPage = page;
+  renderAccountTransactions();
+  document.getElementById('page-transactions').scrollIntoView({ behavior: 'smooth' });
+}
+
+// =============================================
+// EXCLUSÃO
+// =============================================
 async function deleteTx(id) {
   if (!confirm('Excluir este lançamento?')) return;
   try {
     await api('DELETE', '/transactions/' + id);
     await loadAll();
-    renderTransactions();
     renderDashboard();
+    renderAccountTransactions();
+    buildAccountTabs();
   } catch (e) { alert(e.message); }
 }
 
 // =============================================
-// MODAL: NOVO LANÇAMENTO E UPDATE DE LANÇAMENTO
+// MODAL: NOVO / EDITAR LANÇAMENTO
 // =============================================
-let editingTxId = null;
-
 function openTxModal(txId = null) {
   editingTxId = txId;
   document.getElementById('modal-tx').querySelector('.modal-title').textContent =
     txId ? 'Editar lançamento' : 'Novo lançamento';
 
   if (txId) {
-    // Preenche com os dados do lançamento existente
     const t = S.transactions.find(tx => tx.id === txId);
     if (!t) return;
 
@@ -117,13 +265,8 @@ function openTxModal(txId = null) {
     };
 
     selectTxType(t.type);
+    if (t.catId) document.getElementById('f-cat').value = t.catId;
 
-    // Seleciona a categoria correta
-    if (t.catId) {
-      document.getElementById('f-cat').value = t.catId;
-    }
-
-    // Configura transferência
     if (t.type === 'transfer') {
       if (t.destinationAccountId) {
         setTransferType('own');
@@ -134,13 +277,14 @@ function openTxModal(txId = null) {
     }
 
   } else {
-    // Novo lançamento — limpa os campos
     document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
     document.getElementById('f-desc').value = '';
     document.getElementById('f-amount').value = '';
 
     document.getElementById('f-account').innerHTML = S.accounts.map(a =>
-      `<option value="${a.id}">${a.name}${a.type === 'Cartão de crédito' ? ' 💳' : ''}</option>`
+      `<option value="${a.id}" ${a.id === selectedAccountId ? 'selected' : ''}>
+         ${a.name}${a.type === 'Cartão de crédito' ? ' 💳' : ''}
+       </option>`
     ).join('');
 
     document.getElementById('f-account').onchange = () => {
@@ -242,8 +386,7 @@ async function addTransaction() {
     await loadAll();
     closeTxModal();
     renderDashboard();
-    if (document.getElementById('page-transactions').classList.contains('active'))
-      renderTransactions();
-    renderAccounts();
+    buildAccountTabs();
+    renderAccountTransactions();
   } catch (e) { alert(e.message); }
 }
