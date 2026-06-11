@@ -166,26 +166,12 @@
             <i class="ti ti-plus"></i>Novo lançamento
           </button>
         </div>
-        <div class="filter-bar">
-          <button class="filter-btn active" onclick="setFilter('all',this)">Todos</button>
-          <button class="filter-btn" onclick="setFilter('income',this)">Receitas</button>
-          <button class="filter-btn" onclick="setFilter('expense',this)">Despesas</button>
-          <button class="filter-btn" onclick="setFilter('transfer',this)">Transferências</button>
-          <button class="filter-btn" onclick="setFilter('credit_card',this)">💳 Cartão de crédito</button>
-          <button class="filter-btn" id="tx-filter-custom" onclick="setFilter('custom',this)">📅 Período</button>
-        </div>
-        <div class="date-range" id="tx-date-range">
-          <label>De</label>
-          <input type="date" id="tx-date-start" onchange="renderTransactions()">
-          <label>até</label>
-          <input type="date" id="tx-date-end" onchange="renderTransactions()">
-          <button class="btn btn-primary btn-sm" onclick="renderTransactions()">
-            <i class="ti ti-search"></i>Aplicar
-          </button>
-          <span id="tx-period-count" style="font-size:12px;color:#666;margin-left:4px"></span>
-        </div>
-        <div class="card">
-          <div class="tx-list" id="all-tx-list"></div>
+
+        <div id="transactions-container">
+          <!-- Abas de contas -->
+          <div id="account-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
+          <!-- Conteúdo da conta selecionada -->
+          <div id="account-tx-content"></div>
         </div>
       </div>
 
@@ -427,7 +413,6 @@
   <script src="js/budget.js"></script>
   <script src="js/reports.js"></script>
   <script>
-    // Inicialização
     if (token) {
       initApp();
     } else {
