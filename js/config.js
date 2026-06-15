@@ -75,6 +75,7 @@ const S = {
   monthChart: null,
   reportChart: null,
 };
+S.futureTransactions = [];
 
 // Tokens de autenticação
 let token = localStorage.getItem('token') || '';

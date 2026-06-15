@@ -77,6 +77,9 @@
       <div class="nav-item" onclick="showPage('transactions',this)">
         <i class="ti ti-arrows-exchange"></i>Lançamentos
       </div>
+      <div class="nav-item" onclick="showPage('planning',this)">
+        <i class="ti ti-calendar-time"></i>Planejamento
+      </div>
       <span class="nav-section">Gestão</span>
       <div class="nav-item" onclick="showPage('accounts',this)">
         <i class="ti ti-building-bank"></i>Contas
@@ -172,6 +175,28 @@
           <div id="account-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
           <!-- Conteúdo da conta selecionada -->
           <div id="account-tx-content"></div>
+        </div>
+      </div>
+
+      <!-- PLANEJAMENTO -->
+      <div class="page" id="page-planning">
+        <div class="page-header">
+          <span class="page-title">Planejamento</span>
+          <button class="btn btn-primary" onclick="openFutureTxModal()">
+            <i class="ti ti-plus"></i>Novo lançamento futuro
+          </button>
+        </div>
+
+        <!-- Abas de contas -->
+        <div id="planning-account-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
+
+        <!-- Saldo projetado da conta selecionada -->
+        <div class="metrics" id="planning-metrics"></div>
+
+        <!-- Lista de futuros da conta selecionada -->
+        <div class="card">
+          <div class="card-title" id="planning-list-title">Lançamentos futuros</div>
+          <div class="tx-list" id="future-tx-list"></div>
         </div>
       </div>
 
@@ -277,6 +302,12 @@
       <div class="form-group" id="dest-account-group" style="display:none">
         <label class="form-label">Conta destino</label>
         <select id="f-dest-account"></select>
+      </div>
+      <div class="form-group" id="future-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#666">
+          <input type="checkbox" id="f-future" style="width:auto" onchange="toggleFutureField()">
+          <i class="ti ti-calendar-time"></i> Lançamento futuro (não altera o saldo agora)
+        </label>
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="closeTxModal()">Cancelar</button>
