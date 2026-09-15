@@ -58,14 +58,6 @@ function renderAccounts() {
                ${fmt(a.balance)}
              </div>`
       }
-        <div style="display:flex;gap:5px;justify-content:flex-end;margin-top:6px">
-          ${isCreditCard && invoice > 0
-        ? `<button class="btn btn-primary" style="font-size:11px;padding:4px 8px"
-                       onclick="openPayInvoiceModal(${a.id}, '${a.name}', ${invoice})">
-                 Pagar fatura
-               </button>`
-        : ''
-      }
           <button class="icon-btn danger" onclick="deleteAccount(${a.id})">
             <i class="ti ti-trash"></i>
           </button>
@@ -152,6 +144,8 @@ async function confirmPayInvoice() {
     });
     closePayInvoiceModal();
     await loadAll();
+    buildAccountTabs();
+    renderAccountTransactions(); // ← garante que a fatura atualiza na tela
     renderAccounts();
     renderDashboard();
     alert('Fatura paga com sucesso!');

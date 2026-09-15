@@ -109,9 +109,31 @@ function renderAccountTransactions() {
 
   const content = document.getElementById('account-tx-content');
   if (!content) return;
+  const isCreditCard = acc.type === 'Cartão de crédito';
+  const invoice = acc.invoice || 0;
 
   content.innerHTML = `
     
+    <!-- Botão pagar fatura (apenas cartão de crédito) -->
+    ${isCreditCard ? `
+      <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;
+                                display:flex;align-items:center;justify-content:space-between;
+                                flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:13px;font-weight:500">Fatura atual</div>
+          <div style="font-size:22px;font-weight:500;color:${invoice > 0 ? '#A32D2D' : '#0F6E56'}">
+            ${fmt(invoice)}
+          </div>
+        </div>
+        ${invoice > 0
+        ? `<button class="btn btn-primary" onclick="openPayInvoiceModal(${acc.id}, '${acc.name}', ${invoice})">
+              <i class="ti ti-credit-card"></i>Pagar fatura
+            </button>`
+        : `<span style="font-size:13px;color:#0F6E56">
+              <i class="ti ti-check"></i> Fatura em dia
+            </span>`
+      }
+      </div>` : ''}
 
     <!-- Filtro de período -->
     <div class="card" style="margin-bottom:1rem;padding:0.875rem 1.25rem">
@@ -143,7 +165,7 @@ function renderAccountTransactions() {
       </div>
     </div>
 
-    <!-- Paginação -->
+    <!-- Paginação Topo -->
     ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
     
     <!-- Lista de lançamentos -->
@@ -156,7 +178,7 @@ function renderAccountTransactions() {
       </div>
     </div>
 
-    <!-- Paginação -->
+    <!-- Paginação Rodapé -->
     ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
   `;
 }
