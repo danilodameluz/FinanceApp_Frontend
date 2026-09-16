@@ -32,6 +32,11 @@ function buildAccountTabs() {
   const tabBar = document.getElementById('account-tabs');
   if (!tabBar) return;
 
+  const countByAccount = {};
+  (S.futureTransactions || []).forEach(t => {
+    countByAccount[t.accountId] = (countByAccount[t.accountId] || 0) + 1;
+  });
+
   tabBar.innerHTML = S.accounts.map(a => {
     const icon = ACC_ICONS[a.type] || 'ti-building-bank';
     const isCreditCard = a.type === 'Cartão de crédito';
@@ -39,14 +44,22 @@ function buildAccountTabs() {
       ? `Fatura: ${fmt(a.invoice || 0)}`
       : `Saldo: ${fmt(a.balance)}`;
     const isActive = a.id === selectedAccountId;
+    const count = countByAccount[a.id] || 0;
 
     return `<div class="acc-tab ${isActive ? 'acc-tab-active' : ''}"
-                 onclick="selectAccount(${a.id})">
+                 onclick="selectAccount(${a.id})"
+                 style="position:relative">
       <i class="ti ${icon}" style="font-size:16px"></i>
       <div>
         <div style="font-size:13px;font-weight:500">${a.name}</div>
-        <div style="font-size:13px;color:${isCreditCard ? '#A32D2D' : '#0F6E56'}">${subtitle}</div>
+        <div style="font-size:11px;color:${isCreditCard ? '#A32D2D' : '#0F6E56'}">${subtitle}</div>
       </div>
+      ${count > 0
+        ? `<span style="position:absolute;top:-6px;right:-6px;background:#EF9F27;color:#fff;
+                  font-size:10px;font-weight:600;border-radius:10px;padding:2px 6px;
+                  min-width:18px;text-align:center">${count}</span>`
+        : ''
+      }
     </div>`;
   }).join('');
 }
@@ -68,53 +81,86 @@ function selectAccount(accId) {
 // =============================================
 // LANÇAMENTOS DA CONTA SELECIONADA
 // =============================================
-function renderAccountTransactions() {
+async function renderAccountTransactions() {
   const acc = S.accounts.find(a => a.id === selectedAccountId);
   if (!acc) return;
+
+  // Carrega futuros se ainda não carregados
+  if (!S.futureTransactions) S.futureTransactions = [];
+
+  try {
+    const futures = await api('GET', '/transactions/future');
+    S.futureTransactions = (futures || []).map(t => ({
+      ...t,
+      type: t.type.toLowerCase(),
+      desc: t.description,
+      catId: t.categoryId || null
+    }));
+  } catch (e) { S.futureTransactions = []; }
+
+  const isCreditCard = acc.type === 'Cartão de crédito';
+  const invoice = acc.invoice || 0;
 
   const startVal = document.getElementById('tx-date-start')?.value;
   const endVal = document.getElementById('tx-date-end')?.value;
 
-  // Filtra por conta (origem ou destino)
-  let txs = S.transactions.filter(t =>
+  // ── Lançamentos realizados ──────────────────────────
+  let confirmedTxs = S.transactions.filter(t =>
     t.accountId === selectedAccountId ||
     t.destinationAccountId === selectedAccountId
   );
 
-  // Filtra por período se preenchido
   if (startVal && endVal) {
     const start = new Date(startVal + 'T00:00:00');
     const end = new Date(endVal + 'T23:59:59');
-    txs = txs.filter(t => {
+    confirmedTxs = confirmedTxs.filter(t => {
       const d = new Date(t.date + 'T12:00:00');
       return d >= start && d <= end;
     });
   }
 
-  // Ordena por data decrescente
-  txs.sort((a, b) => b.date.localeCompare(a.date));
+  confirmedTxs.sort((a, b) => b.date.localeCompare(a.date));
 
-  // Paginação
-  const total = txs.length;
+  // ── Lançamentos futuros ─────────────────────────────
+  const futureTxs = S.futureTransactions.filter(t =>
+    t.accountId === selectedAccountId
+  );
+
+  // ── Métricas realizadas ─────────────────────────────
+  const income = confirmedTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = confirmedTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const balance = income - expense;
+
+  // ── Métricas projetadas ─────────────────────────────
+  const currentValue = isCreditCard ? invoice : acc.balance;
+  let projected = currentValue;
+  let futureIncome = 0;
+  let futureExpense = 0;
+
+  futureTxs.forEach(t => {
+    if (isCreditCard) {
+      if (t.type === 'expense') { projected += t.amount; futureExpense += t.amount; }
+    } else {
+      if (t.type === 'income') { projected += t.amount; futureIncome += t.amount; }
+      else if (t.type === 'expense' || t.type === 'transfer') { projected -= t.amount; futureExpense += t.amount; }
+    }
+  });
+
+  const goodDirection = isCreditCard ? (projected <= currentValue) : (projected >= currentValue);
+
+  // ── Paginação ───────────────────────────────────────
+  const total = confirmedTxs.length;
   const totalPages = Math.max(1, Math.ceil(total / TX_PAGE_SIZE));
   if (txCurrentPage > totalPages) txCurrentPage = totalPages;
-
-  const start = (txCurrentPage - 1) * TX_PAGE_SIZE;
-  const paged = txs.slice(start, start + TX_PAGE_SIZE);
-
-  // Métricas do período filtrado
-  const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const balance = income - expense;
+  const pageStart = (txCurrentPage - 1) * TX_PAGE_SIZE;
+  const paged = confirmedTxs.slice(pageStart, pageStart + TX_PAGE_SIZE);
 
   const content = document.getElementById('account-tx-content');
   if (!content) return;
-  const isCreditCard = acc.type === 'Cartão de crédito';
-  const invoice = acc.invoice || 0;
 
   content.innerHTML = `
-    
-    <!-- Botão pagar fatura (apenas cartão de crédito) -->
+
+    <!-- Fatura cartão de crédito -->
     ${isCreditCard ? `
       <div class="card" style="margin-bottom:1rem;padding:1rem 1.25rem;
                                 display:flex;align-items:center;justify-content:space-between;
@@ -127,12 +173,32 @@ function renderAccountTransactions() {
         </div>
         ${invoice > 0
         ? `<button class="btn btn-primary" onclick="openPayInvoiceModal(${acc.id}, '${acc.name}', ${invoice})">
-              <i class="ti ti-credit-card"></i>Pagar fatura
-            </button>`
-        : `<span style="font-size:13px;color:#0F6E56">
-              <i class="ti ti-check"></i> Fatura em dia
-            </span>`
+               <i class="ti ti-credit-card"></i>Pagar fatura
+             </button>`
+        : `<span style="font-size:13px;color:#0F6E56"><i class="ti ti-check"></i> Fatura em dia</span>`
       }
+      </div>` : ''}
+
+    <!-- Métricas projetadas (só se houver futuros) -->
+    ${futureTxs.length > 0 ? `
+      <div class="metrics" style="margin-bottom:1rem">
+        <div class="metric-card" style="border-left:3px solid #EF9F27">
+          <div class="metric-label">Receitas previstas</div>
+          <div class="metric-value income">+${fmt(futureIncome)}</div>
+        </div>
+        <div class="metric-card" style="border-left:3px solid #EF9F27">
+          <div class="metric-label">Despesas previstas</div>
+          <div class="metric-value expense">-${fmt(futureExpense)}</div>
+        </div>
+        <div class="metric-card" style="border-left:3px solid #EF9F27">
+          <div class="metric-label">${isCreditCard ? 'Fatura projetada' : 'Saldo projetado'}</div>
+          <div class="metric-value ${goodDirection ? 'income' : 'expense'}">${fmt(projected)}</div>
+        </div>
+        <div class="metric-card" style="border-left:3px solid #EF9F27">
+          <div class="metric-label">Previstos pendentes</div>
+          <div class="metric-value">${futureTxs.length}</div>
+          <div class="metric-sub">aguardando confirmação</div>
+        </div>
       </div>` : ''}
 
     <!-- Filtro de período -->
@@ -143,15 +209,11 @@ function renderAccountTransactions() {
         </span>
         <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#666;flex-wrap:wrap">
           <label>De</label>
-          <input type="date" id="tx-date-start"
-                 value="${startVal || ''}"
-                 style="width:145px"
-                 onchange="applyTxDateFilter()">
+          <input type="date" id="tx-date-start" value="${startVal || ''}"
+                 style="width:145px" onchange="applyTxDateFilter()">
           <label>até</label>
-          <input type="date" id="tx-date-end"
-                 value="${endVal || ''}"
-                 style="width:145px"
-                 onchange="applyTxDateFilter()">
+          <input type="date" id="tx-date-end" value="${endVal || ''}"
+                 style="width:145px" onchange="applyTxDateFilter()">
           <button class="btn btn-primary btn-sm" onclick="applyTxDateFilter()">
             <i class="ti ti-search"></i>Filtrar
           </button>
@@ -165,21 +227,90 @@ function renderAccountTransactions() {
       </div>
     </div>
 
-    <!-- Paginação Topo -->
-    ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
-    
-    <!-- Lista de lançamentos -->
+    <!-- LANÇAMENTOS PREVISTOS -->
+    ${futureTxs.length > 0 ? `
+      <div class="card" style="margin-bottom:1rem;border-left:3px solid #EF9F27">
+        <div class="card-title">
+          <span>
+            <i class="ti ti-calendar-time" style="color:#EF9F27;margin-right:6px"></i>
+            Lançamentos previstos
+          </span>
+          <span style="font-size:12px;color:#aaa">${futureTxs.length} pendente(s)</span>
+        </div>
+        <div class="tx-list">
+          ${[...futureTxs].sort((a, b) => a.date.localeCompare(b.date)).map(t => {
+      const cat = t.catId ? getCat(t.catId) : null;
+      const defBg = { income: '#E1F5EE', expense: '#FCEBEB', transfer: '#E6F1FB' };
+      const defClr = { income: '#0F6E56', expense: '#A32D2D', transfer: '#185FA5' };
+      const defIcon = { income: 'ti-arrow-down-circle', expense: 'ti-arrow-up-circle', transfer: 'ti-arrows-exchange' };
+      const bg = cat ? (COLOR_BG[cat.color] || defBg[t.type]) : defBg[t.type];
+      const clr = cat ? cat.color : defClr[t.type];
+      const iconI = cat ? cat.icon : defIcon[t.type];
+      const sign = { income: '+', expense: '-', transfer: '' };
+      const amtCls = { income: 'pos', expense: 'neg', transfer: '' };
+      const bLabel = { income: 'Receita', expense: 'Despesa', transfer: 'Transferência' };
+      const badgeCls = { income: 'badge-income', expense: 'badge-expense', transfer: 'badge-transfer' };
+      const dateObj = new Date(t.date + 'T12:00:00');
+      const today = new Date(); today.setHours(12, 0, 0, 0);
+      const diffDays = Math.ceil((dateObj - today) / (1000 * 60 * 60 * 24));
+      let dateLabel = t.date.split('-').reverse().join('/');
+      if (diffDays === 0) dateLabel = 'Hoje';
+      else if (diffDays === 1) dateLabel = 'Amanhã';
+      else if (diffDays > 1) dateLabel += ` (em ${diffDays}d)`;
+      else if (diffDays < 0) dateLabel += ` (atrasado ${Math.abs(diffDays)}d)`;
+
+      return `<div class="future-tx-item">
+              <div class="tx-left">
+                <div class="tx-icon" style="background:${bg}">
+                  <i class="ti ${iconI}" style="color:${clr}"></i>
+                </div>
+                <div>
+                  <div class="tx-name">${t.desc}</div>
+                  <div class="tx-cat">
+                    <span class="badge ${badgeCls[t.type]}">${bLabel[t.type]}</span>
+                    ${cat ? ' · ' + cat.name : ''}
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <span class="future-tx-date"
+                      style="color:${diffDays < 0 ? '#A32D2D' : '#633806'}">${dateLabel}</span>
+                <div class="tx-amount ${amtCls[t.type]}">${sign[t.type]}${fmt(t.amount)}</div>
+                <div class="future-tx-actions">
+                  <button class="btn btn-primary btn-sm" onclick="confirmFutureTx(${t.id})" title="Confirmar">
+                    <i class="ti ti-check"></i>
+                  </button>
+                  <button class="icon-btn" onclick="openFutureTxModal(${t.id})" title="Editar">
+                    <i class="ti ti-edit"></i>
+                  </button>
+                  <button class="icon-btn danger" onclick="deleteFutureTx(${t.id})" title="Excluir">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>`;
+    }).join('')}
+        </div>
+      </div>` : ''}
+
+    <!-- LANÇAMENTOS REALIZADOS -->
     <div class="card">
+      <div class="card-title">
+        <span>
+          <i class="ti ti-check" style="color:#1D9E75;margin-right:6px"></i>
+          Lançamentos realizados
+        </span>
+        <span style="font-size:12px;color:#aaa">${total} no total</span>
+      </div>
+      ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
       <div class="tx-list" id="tx-list-content">
         ${paged.length
       ? paged.map(t => txRow(t, true)).join('')
       : '<div class="empty-state"><i class="ti ti-receipt-off"></i>Nenhum lançamento encontrado</div>'
     }
       </div>
+      ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
     </div>
-
-    <!-- Paginação Rodapé -->
-    ${totalPages > 1 ? buildPagination(txCurrentPage, totalPages) : ''}
   `;
 }
 
@@ -271,7 +402,7 @@ function openTxModal(txId = null) {
   isFutureModal = false;
   document.getElementById('future-group').style.display = 'block'; // ← garante visibilidade
   document.getElementById('f-future').checked = false;              // ← reseta o checkbox
-  document.getElementById('modal-tx').querySelector('.modal-title').textContent =
+  document.getElementById('modal-title-tx').textContent =
     txId ? 'Editar lançamento' : 'Novo lançamento';
 
   if (txId) {
@@ -414,27 +545,18 @@ async function addTransaction() {
   try {
     if (editingFutureId) {
       await api('PUT', '/transactions/' + editingFutureId, body);
-      closeTxModal();
-      await renderFutureTransactions();
     } else if (editingTxId) {
       await api('PUT', '/transactions/' + editingTxId, body);
-      await loadAll();
-      closeTxModal();
-      renderDashboard();
-      buildAccountTabs();
-      renderAccountTransactions();
     } else {
       await api('POST', '/transactions', body);
-      closeTxModal();
-      if (isFuture) {
-        await renderFutureTransactions();
-      } else {
-        await loadAll();
-        renderDashboard();
-        buildAccountTabs();
-        renderAccountTransactions();
-      }
     }
+
+    await loadAll();
+    closeTxModal();
+    renderDashboard();
+    buildAccountTabs();
+    await renderAccountTransactions();
+
   } catch (e) { alert(e.message); }
 }
 
@@ -654,23 +776,24 @@ function renderFutureTxList(futures) {
 }
 
 async function confirmFutureTx(id) {
-  if (!confirm('Confirmar este lançamento? Ele será movido para os lançamentos e o saldo será atualizado.')) return;
+  if (!confirm('Confirmar este lançamento? O saldo será atualizado.')) return;
   try {
     await api('POST', `/transactions/${id}/confirm`);
     await loadAll();
-    await renderFutureTransactions();
-    renderDashboard();
+    await renderAccountTransactions();
     buildAccountTabs();
-    renderAccountTransactions();
+    renderDashboard();
     alert('Lançamento confirmado com sucesso!');
   } catch (e) { alert(e.message); }
 }
 
 async function deleteFutureTx(id) {
-  if (!confirm('Excluir este lançamento futuro?')) return;
+  if (!confirm('Excluir este lançamento previsto?')) return;
   try {
     await api('DELETE', '/transactions/' + id);
-    await renderFutureTransactions();
+    await loadAll();
+    await renderAccountTransactions();
+    buildAccountTabs();
   } catch (e) { alert(e.message); }
 }
 
@@ -682,7 +805,7 @@ function openFutureTxModal(txId = null) {
   isFutureModal = true;
   S.txType = 'expense';
 
-  document.getElementById('modal-tx').querySelector('.modal-title').textContent =
+  document.getElementById('modal-title-tx').textContent =
     txId ? 'Editar lançamento futuro' : 'Novo lançamento futuro';
 
   document.getElementById('future-group').style.display = 'none';
