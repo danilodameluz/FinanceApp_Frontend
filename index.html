@@ -77,9 +77,6 @@
       <div class="nav-item" onclick="showPage('transactions',this)">
         <i class="ti ti-arrows-exchange"></i>Lançamentos
       </div>
-      <div class="nav-item" onclick="showPage('planning',this)">
-        <i class="ti ti-calendar-time"></i>Planejamento
-      </div>
       <span class="nav-section">Gestão</span>
       <div class="nav-item" onclick="showPage('accounts',this)">
         <i class="ti ti-building-bank"></i>Contas
@@ -178,28 +175,6 @@
         </div>
       </div>
 
-      <!-- PLANEJAMENTO -->
-      <div class="page" id="page-planning">
-        <div class="page-header">
-          <span class="page-title">Planejamento</span>
-          <button class="btn btn-primary" onclick="openFutureTxModal()">
-            <i class="ti ti-plus"></i>Novo lançamento futuro
-          </button>
-        </div>
-
-        <!-- Abas de contas -->
-        <div id="planning-account-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem"></div>
-
-        <!-- Saldo projetado da conta selecionada -->
-        <div class="metrics" id="planning-metrics"></div>
-
-        <!-- Lista de futuros da conta selecionada -->
-        <div class="card">
-          <div class="card-title" id="planning-list-title">Lançamentos futuros</div>
-          <div class="tx-list" id="future-tx-list"></div>
-        </div>
-      </div>
-
       <!-- CONTAS -->
       <div class="page" id="page-accounts">
         <div class="page-header">
@@ -254,7 +229,7 @@
   <div class="modal-bg" id="modal-tx">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title">Novo lançamento</span>
+        <span class="modal-title" id="modal-title-tx">Novo lançamento</span>
         <button class="btn" onclick="closeTxModal()" style="padding:4px 8px;border:none">
           <i class="ti ti-x"></i>
         </button>

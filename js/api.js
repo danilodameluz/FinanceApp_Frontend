@@ -73,7 +73,6 @@ function showPage(id, el) {
   const renders = {
     dashboard: renderDashboard,
     transactions: renderTransactions,
-    planning: renderFutureTransactions,
     accounts: renderAccounts,
     categories: renderCategories,
     budget: renderBudget,
