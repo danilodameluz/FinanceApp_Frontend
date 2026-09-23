@@ -81,6 +81,9 @@
       <div class="nav-item" onclick="showPage('accounts',this)">
         <i class="ti ti-building-bank"></i>Contas
       </div>
+      <div class="nav-item" onclick="showPage('banks',this)">
+        <i class="ti ti-building-bank"></i>Bancos conectados
+      </div>
       <div class="nav-item" onclick="showPage('categories',this)">
         <i class="ti ti-tag"></i>Categorias
       </div>
@@ -182,6 +185,54 @@
         </div>
         <div class="metrics" id="acc-summary"></div>
         <div class="grid-3" id="accounts-grid"></div>
+      </div>
+
+      <!-- BANCOS CONECTADOS -->
+      <div class="page" id="page-banks">
+        <div class="page-header">
+          <span class="page-title">Bancos conectados</span>
+          <button class="btn btn-primary" onclick="openPluggyWidget()">
+            <i class="ti ti-plus"></i>Conectar banco
+          </button>
+        </div>
+
+        <!-- Status da última sincronização -->
+        <div id="banks-sync-status" style="display:none;margin-bottom:1rem"></div>
+
+        <!-- Lista de conexões -->
+        <div id="banks-connections-grid"
+          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem">
+        </div>
+
+        <!-- Empty state -->
+        <div id="banks-empty" class="card" style="display:none">
+          <div class="empty-state">
+            <i class="ti ti-building-bank"></i>
+            Nenhum banco conectado ainda.<br><br>
+            <span style="font-size:13px;color:#aaa;display:block;margin-bottom:1rem">
+              Conecte seu banco para importar automaticamente<br>
+              saldos e transações.
+            </span>
+            <button class="btn btn-primary" onclick="openPluggyWidget()">
+              <i class="ti ti-plus"></i>Conectar primeiro banco
+            </button>
+          </div>
+        </div>
+
+        <!-- Info sobre sincronização -->
+        <div class="card" style="padding:1rem 1.25rem">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <i class="ti ti-info-circle" style="color:#378ADD;font-size:20px;flex-shrink:0;margin-top:2px"></i>
+            <div style="font-size:13px;color:#666;line-height:1.6">
+              <strong style="color:#1a1a1a">Como funciona a sincronização</strong><br>
+              Ao conectar um banco, importamos automaticamente as transações dos últimos
+              <strong>90 dias</strong> e o saldo atual de cada conta.<br>
+              Transações já existentes no sistema <strong>não são duplicadas</strong>.<br>
+              Você pode sincronizar manualmente a qualquer momento clicando em
+              <strong>Sincronizar</strong>.
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- CATEGORIAS -->
@@ -418,6 +469,7 @@
   <script src="js/categories.js"></script>
   <script src="js/budget.js"></script>
   <script src="js/reports.js"></script>
+  <script src="js/banks.js"></script>
   <script>
     if (token) {
       initApp();
