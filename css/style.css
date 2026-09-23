@@ -898,3 +898,80 @@ select:focus {
   display: flex;
   gap: 4px;
 }
+
+/* ── BANK CARDS ───────────────────────────────── */
+.bank-card {
+  background: #fff;
+  border: 0.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bank-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bank-card-name {
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bank-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.bank-status-ok {
+  background: #E1F5EE;
+  color: #085041;
+}
+
+.bank-status-error {
+  background: #FCEBEB;
+  color: #791F1F;
+}
+
+.bank-status-loading {
+  background: #FAEEDA;
+  color: #633806;
+}
+
+.bank-card-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bank-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f5f5f3;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.bank-card-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #aaa;
+}

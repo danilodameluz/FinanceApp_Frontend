@@ -76,7 +76,8 @@ function showPage(id, el) {
     accounts: renderAccounts,
     categories: renderCategories,
     budget: renderBudget,
-    reports: renderReports
+    reports: renderReports,
+    banks: renderBanks
   };
 
   if (renders[id]) renders[id]();
